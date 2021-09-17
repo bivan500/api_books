@@ -14,40 +14,34 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// spaHandler implements the http.Handler interface, so we can use it
-// to respond to HTTP requests. The path to the static directory and
-// path to the index file within that static directory are used to
-// serve the SPA in the given static directory.
 var conn *pgx.Conn
 
-type book struct {
-	Author string
-	Name   string
-}
-
-type books []book
-
 func getByAuthor(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	author := vars["autor"]
-	var b book
-	var bk books
+	type book struct {
+		Author string
+		Name   string
+	}
 
-	rows, err := conn.Query(context.Background(), "select name, author from books where author=$1", author)
+	type books []book
+
+	rows, err := conn.Query(context.Background(), "select name, author from books where author=$1", mux.Vars(r)["autor"])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 		return
 	}
+
+	var bookList books
 	for rows.Next() {
-		err := rows.Scan(&b.Name, &b.Author)
+		var bookItem book
+		err := rows.Scan(&bookItem.Name, &bookItem.Author)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 			return
 		}
-		bk = append(bk, b)
+		bookList = append(bookList, bookItem)
 	}
-	fmt.Println(bk)
-	json.NewEncoder(w).Encode(bk)
+	fmt.Println(bookList)
+	json.NewEncoder(w).Encode(bookList)
 }
 
 func main() {
@@ -74,6 +68,6 @@ func main() {
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
-
+	fmt.Println("Starting server...")
 	log.Fatal(srv.ListenAndServe())
 }
